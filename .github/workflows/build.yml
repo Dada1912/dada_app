@@ -1,4 +1,4 @@
-name: Build Dada OS Final
+name: Build Dada OS Fixed
 on: workflow_dispatch
 jobs:
   build:
@@ -14,16 +14,16 @@ jobs:
         flutter-version: '3.19.0'
         channel: 'stable'
 
-    - name: Create Clean App & Write Code 🪄
+    - name: Create App & Fix Error 🪄
       run: |
         # 1. ಹೊಸ ಆ್ಯಪ್ ಸೃಷ್ಟಿ
         flutter create --org com.dada --project-name dada_app clean_app
         cd clean_app
 
-        # 2. ಪ್ಯಾಕೇಜ್‌ಗಳನ್ನು ಸೇರಿಸು
+        # 2. ಪ್ಯಾಕೇಜ್ ಸೇರಿಸು
         flutter pub add external_app_launcher shared_preferences
         
-        # 3. Android Manifest ಬರೆಯುವ ಮ್ಯಾಜಿಕ್
+        # 3. Android Manifest (ಈಗ ಸರಿಯಾಗಿದೆ!)
         cat <<EOF > android/app/src/main/AndroidManifest.xml
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
             package="com.dada.dada_app">
@@ -34,6 +34,11 @@ jobs:
                 android:label="Dada"
                 android:name="\${applicationName}"
                 android:icon="@mipmap/ic_launcher">
+                
+                <meta-data
+                    android:name="flutterEmbedding"
+                    android:value="2" />
+                
                 <activity
                     android:name=".MainActivity"
                     android:exported="true"
@@ -51,7 +56,7 @@ jobs:
         </manifest>
         EOF
 
-        # 4. MainActivity (Lock Logic) ಬರೆಯುವ ಮ್ಯಾಜಿಕ್
+        # 4. MainActivity (Lock Logic)
         cat <<EOF > android/app/src/main/kotlin/com/dada/dada_app/MainActivity.kt
         package com.dada.dada_app
         import io.flutter.embedding.android.FlutterActivity
@@ -85,7 +90,7 @@ jobs:
         }
         EOF
 
-        # 5. UI Code (Dart) ಬರೆಯುವ ಮ್ಯಾಜಿಕ್
+        # 5. UI Code (Dart)
         cat <<EOF > lib/main.dart
         import 'package:flutter/material.dart';
         import 'package:flutter/services.dart';
@@ -170,5 +175,5 @@ jobs:
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: dada-os-final
+        name: dada-os-fixed
         path: clean_app/build/app/outputs/flutter-apk/app-release.apk
