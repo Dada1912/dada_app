@@ -20,7 +20,7 @@ jobs:
         flutter create --org com.dada --project-name dada_app clean_app
         cd clean_app
 
-        # 2. ಪ್ಯಾಕೇಜ್‌ಗಳನ್ನು ಸೇರಿಸು (Safe Way)
+        # 2. ಪ್ಯಾಕೇಜ್‌ಗಳನ್ನು ಸೇರಿಸು
         flutter pub add external_app_launcher shared_preferences
         
         # 3. Android Manifest ಬರೆಯುವ ಮ್ಯಾಜಿಕ್
@@ -51,7 +51,7 @@ jobs:
         </manifest>
         EOF
 
-        # 4. MainActivity (Kiosk Logic) ಬರೆಯುವ ಮ್ಯಾಜಿಕ್
+        # 4. MainActivity (Lock Logic) ಬರೆಯುವ ಮ್ಯಾಜಿಕ್
         cat <<EOF > android/app/src/main/kotlin/com/dada/dada_app/MainActivity.kt
         package com.dada.dada_app
         import io.flutter.embedding.android.FlutterActivity
@@ -122,7 +122,6 @@ jobs:
           @override
           void initState() {
             super.initState();
-            // ಆ್ಯಪ್ ಓಪನ್ ಆದ 2 ಸೆಕೆಂಡ್ ಮೇಲೆ ಲಾಕ್ ಮಾಡು
             Future.delayed(const Duration(seconds: 2), () => _kiosk(true));
           }
 
@@ -173,4 +172,3 @@ jobs:
       with:
         name: dada-os-final
         path: clean_app/build/app/outputs/flutter-apk/app-release.apk
-        
