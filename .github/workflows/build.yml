@@ -1,4 +1,4 @@
-name: Build Dada OS
+name: Build Dada OS Final
 on: workflow_dispatch
 jobs:
   build:
@@ -12,21 +12,165 @@ jobs:
     - uses: subosito/flutter-action@v2
       with:
         flutter-version: '3.19.0'
-    - name: Build Clean App 🏗️
+        channel: 'stable'
+
+    - name: Create Clean App & Write Code 🪄
       run: |
+        # 1. ಹೊಸ ಆ್ಯಪ್ ಸೃಷ್ಟಿ
         flutter create --org com.dada --project-name dada_app clean_app
-        # Copy native files
-        cp -r android/app/src/main/kotlin/com/dada/dada_app/* clean_app/android/app/src/main/kotlin/com/dada/dada_app/
-        cp android/app/src/main/AndroidManifest.xml clean_app/android/app/src/main/AndroidManifest.xml
-        # Copy Flutter code
-        cp lib/main.dart clean_app/lib/main.dart
-        cp pubspec.yaml clean_app/pubspec.yaml
-        
         cd clean_app
-        flutter pub get
+
+        # 2. ಪ್ಯಾಕೇಜ್‌ಗಳನ್ನು ಸೇರಿಸು (Safe Way)
+        flutter pub add external_app_launcher shared_preferences
+        
+        # 3. Android Manifest ಬರೆಯುವ ಮ್ಯಾಜಿಕ್
+        cat <<EOF > android/app/src/main/AndroidManifest.xml
+        <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+            package="com.dada.dada_app">
+            <uses-permission android:name="android.permission.REORDER_TASKS"/>
+            <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+            <uses-permission android:name="android.permission.MANAGE_OWN_CALLS"/>
+            <application
+                android:label="Dada"
+                android:name="\${applicationName}"
+                android:icon="@mipmap/ic_launcher">
+                <activity
+                    android:name=".MainActivity"
+                    android:exported="true"
+                    android:launchMode="singleTop"
+                    android:theme="@style/LaunchTheme"
+                    android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+                    android:hardwareAccelerated="true"
+                    android:windowSoftInputMode="adjustResize">
+                    <intent-filter>
+                        <action android:name="android.intent.action.MAIN"/>
+                        <category android:name="android.intent.category.LAUNCHER"/>
+                    </intent-filter>
+                </activity>
+            </application>
+        </manifest>
+        EOF
+
+        # 4. MainActivity (Kiosk Logic) ಬರೆಯುವ ಮ್ಯಾಜಿಕ್
+        cat <<EOF > android/app/src/main/kotlin/com/dada/dada_app/MainActivity.kt
+        package com.dada.dada_app
+        import io.flutter.embedding.android.FlutterActivity
+        import io.flutter.embedding.engine.FlutterEngine
+        import io.flutter.plugin.common.MethodChannel
+
+        class MainActivity: FlutterActivity() {
+            private val CHANNEL = "com.dada.focusos/kiosk"
+            override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+                super.configureFlutterEngine(flutterEngine)
+                MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
+                    if (call.method == "startKiosk") {
+                        try {
+                            startLockTask()
+                            result.success(null)
+                        } catch (e: Exception) {
+                            result.error("ERROR", e.message, null)
+                        }
+                    } else if (call.method == "stopKiosk") {
+                        try {
+                            stopLockTask()
+                            result.success(null)
+                        } catch (e: Exception) {
+                            result.error("ERROR", e.message, null)
+                        }
+                    } else {
+                        result.notImplemented()
+                    }
+                }
+            }
+        }
+        EOF
+
+        # 5. UI Code (Dart) ಬರೆಯುವ ಮ್ಯಾಜಿಕ್
+        cat <<EOF > lib/main.dart
+        import 'package:flutter/material.dart';
+        import 'package:flutter/services.dart';
+        import 'package:external_app_launcher/external_app_launcher.dart';
+        import 'dart:async';
+
+        void main() => runApp(const DadaApp());
+
+        class DadaApp extends StatelessWidget {
+          const DadaApp({super.key});
+          @override
+          Widget build(BuildContext context) {
+            return MaterialApp(
+              debugShowCheckedModeBanner: false,
+              title: 'Dada',
+              theme: ThemeData.dark().copyWith(
+                scaffoldBackgroundColor: const Color(0xFF121212),
+                colorScheme: const ColorScheme.dark(primary: Colors.cyanAccent),
+              ),
+              home: const DadaHome(),
+            );
+          }
+        }
+
+        class DadaHome extends StatefulWidget {
+          const DadaHome({super.key});
+          @override
+          State<DadaHome> createState() => _DadaHomeState();
+        }
+
+        class _DadaHomeState extends State<DadaHome> {
+          static const platform = MethodChannel('com.dada.focusos/kiosk');
+          
+          @override
+          void initState() {
+            super.initState();
+            // ಆ್ಯಪ್ ಓಪನ್ ಆದ 2 ಸೆಕೆಂಡ್ ಮೇಲೆ ಲಾಕ್ ಮಾಡು
+            Future.delayed(const Duration(seconds: 2), () => _kiosk(true));
+          }
+
+          Future<void> _kiosk(bool enable) async {
+            try {
+              await platform.invokeMethod(enable ? 'startKiosk' : 'stopKiosk');
+              if (!enable) SystemNavigator.pop();
+            } catch (e) {
+              debugPrint("Error: \$e");
+            }
+          }
+
+          @override
+          Widget build(BuildContext context) {
+            return Scaffold(
+              body: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text("DADA OS", style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Colors.cyanAccent)),
+                    const SizedBox(height: 20),
+                    const Text("🔒 PHONE LOCKED 🔒", style: TextStyle(color: Colors.grey)),
+                    const SizedBox(height: 50),
+                    ElevatedButton(
+                      onPressed: () => LaunchApp.openApp(androidPackageName: "com.termux"),
+                      child: const Text("Open Termux"),
+                    ),
+                    const SizedBox(height: 20),
+                    TextButton(
+                      onPressed: () => _kiosk(false),
+                      child: const Text("EMERGENCY EXIT", style: TextStyle(color: Colors.red)),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+        }
+        EOF
+
+    - name: Build APK
+      run: |
+        cd clean_app
         flutter build apk --release --no-shrink
+
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: dada-os-apk
+        name: dada-os-final
         path: clean_app/build/app/outputs/flutter-apk/app-release.apk
+        
