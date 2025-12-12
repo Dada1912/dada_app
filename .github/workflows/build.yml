@@ -1,4 +1,4 @@
-name: Build Basic Dada
+name: Build Dada OS
 on: workflow_dispatch
 jobs:
   build:
@@ -12,15 +12,21 @@ jobs:
     - uses: subosito/flutter-action@v2
       with:
         flutter-version: '3.19.0'
-        channel: 'stable'
     - name: Build Clean App 🏗️
       run: |
         flutter create --org com.dada --project-name dada_app clean_app
+        # Copy native files
+        cp -r android/app/src/main/kotlin/com/dada/dada_app/* clean_app/android/app/src/main/kotlin/com/dada/dada_app/
+        cp android/app/src/main/AndroidManifest.xml clean_app/android/app/src/main/AndroidManifest.xml
+        # Copy Flutter code
         cp lib/main.dart clean_app/lib/main.dart
+        cp pubspec.yaml clean_app/pubspec.yaml
+        
         cd clean_app
+        flutter pub get
         flutter build apk --release --no-shrink
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: dada-basic-apk
+        name: dada-os-apk
         path: clean_app/build/app/outputs/flutter-apk/app-release.apk
